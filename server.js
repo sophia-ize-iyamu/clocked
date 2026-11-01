@@ -25,11 +25,17 @@ const DAY = 24 * HOUR;
 const LIMITS = { roundsPerAddressPerHour: 30, roundsPerDay: 120, emailsPerAddressPerDay: 10, emailsPerDay: 15 };
 
 // The backup interviewer's model, through an OpenAI-compatible API: Gemini's free tier if its key is set,
-// otherwise Featherless. With neither key, the backup stays off.
+// otherwise Featherless. With neither key, the backup stays off. The entries in `tries` are attempted in
+// order, so a busy or retired model falls through to the next one.
 const BACKUP = GEMINI_API_KEY
-  ? { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: GEMINI_API_KEY, model: BACKUP_MODEL || "gemini-2.5-flash" }
+  ? {
+      url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      key: GEMINI_API_KEY,
+      // Minimal thinking keeps replies near a second and leaves the token budget for the answer itself.
+      tries: [{ model: BACKUP_MODEL || "gemini-3.5-flash", reasoning_effort: "minimal" }, { model: "gemini-flash-lite-latest" }],
+    }
   : FEATHERLESS_API_KEY
-    ? { url: "https://api.featherless.ai/v1/chat/completions", key: FEATHERLESS_API_KEY, model: BACKUP_MODEL || "Qwen/Qwen2.5-14B-Instruct" }
+    ? { url: "https://api.featherless.ai/v1/chat/completions", key: FEATHERLESS_API_KEY, tries: [{ model: BACKUP_MODEL || "Qwen/Qwen2.5-14B-Instruct" }] }
     : null;
 
 const app = express();
@@ -119,23 +125,32 @@ app.post("/api/backup/turn", async (req, res) => {
     .slice(-8)
     .map((t) => `Tock: ${clip(t.q, 300)}\nUser: ${clip(t.a, 600)}`)
     .join("\n");
+  const messages = [
+    { role: "system", content: backupPrompt(clip(role, 80), clip(posting, 4000) || "none") },
+    { role: "user", content: `${transcript}\n\nScore the user's last answer and ask your next question. JSON only.` },
+  ];
   try {
-    const r = await fetch(BACKUP.url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${BACKUP.key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: BACKUP.model,
-        max_tokens: 220,
-        temperature: 0.7,
-        messages: [
-          { role: "system", content: backupPrompt(clip(role, 80), clip(posting, 4000) || "none") },
-          { role: "user", content: `${transcript}\n\nScore the user's last answer and ask your next question. JSON only.` },
-        ],
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!r.ok) throw new Error(`the backup model returned ${r.status}`);
-    const text = (await r.json()).choices?.[0]?.message?.content ?? "";
+    let text = null;
+    for (const settings of BACKUP.tries) {
+      let r;
+      try {
+        r = await fetch(BACKUP.url, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${BACKUP.key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ ...settings, max_tokens: 600, temperature: 0.7, messages }),
+          signal: AbortSignal.timeout(10000),
+        });
+      } catch (err) {
+        console.error(`backup model ${settings.model} failed: ${err.message}`);
+        continue;
+      }
+      if (r.ok) {
+        text = (await r.json()).choices?.[0]?.message?.content ?? "";
+        break;
+      }
+      console.error(`backup model ${settings.model} returned ${r.status}`);
+    }
+    if (text === null) throw new Error("no backup model answered");
     const j = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] ?? "{}");
     res.json({
       delta: Math.max(-10, Math.min(30, Math.round(Number(j.delta) || 0))),
