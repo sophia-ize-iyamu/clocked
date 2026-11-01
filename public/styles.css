@@ -1,0 +1,632 @@
+:root {
+  --bg: #07070a;
+  --panel: rgba(18, 18, 24, 0.72);
+  --line: rgba(255, 255, 255, 0.09);
+  --ink: #f4f1ea;
+  --muted: #8d8a93;
+  --calm: #5ee7ff;
+  --sus: #ffb020;
+  --hot: #ff2d55;
+  --pass: #39ff88;
+  --acid: #e9ff5c;
+  --heat: var(--calm);
+  --display: "Anton", "Impact", sans-serif;
+  --ui: "Space Grotesk", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "clig" 0, "dlig" 0, "hlig" 0;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; min-height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui);
+  line-height: 1.45;
+  overflow-x: hidden;
+}
+
+.mono { font-family: var(--mono); }
+
+/* Room lighting: a swaying lamp, film grain and a red/green flash for verdicts. */
+.spot {
+  position: fixed;
+  inset: -20vmax;
+  /* .spot overhangs the viewport by 20vmax, so pointer coordinates are shifted by that much. */
+  background: radial-gradient(circle at calc(20vmax + var(--mx, 50vw)) calc(20vmax + var(--my, 18vh)), rgba(255, 244, 214, 0.15), transparent 30%),
+    radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--heat) 14%, transparent), transparent 46%);
+  animation: sway 9s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+/* Custom cursor: a lime reticle everywhere and a red target over anything clickable.
+   They're real cursor images, so clicks land exactly where you point. cursor.js adds a trailing ring. */
+body { cursor: url("/cursor.svg") 16 16, crosshair; }
+button, .role, summary, a { cursor: url("/cursor-hot.svg") 16 16, pointer; }
+input, textarea { cursor: text; }
+
+.cursorRing {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border: 1px solid rgba(233, 255, 92, 0.35);
+  border-radius: 50%;
+  pointer-events: none;
+  transition: width 0.25s ease, height 0.25s ease, margin 0.25s ease, border-color 0.25s, opacity 0.2s;
+}
+
+.cursorRing.big { width: 70px; height: 70px; margin: -35px 0 0 -35px; border-color: rgba(255, 45, 85, 0.6); }
+.cursorRing.hidden { opacity: 0; }
+
+@keyframes sway {
+  from { transform: translateX(-3vmax) rotate(-2deg); }
+  to { transform: translateX(3vmax) rotate(2deg); }
+}
+
+.grain {
+  position: fixed;
+  inset: -50%;
+  pointer-events: none;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation: grain 0.6s steps(3) infinite;
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(-3%, 2%); }
+  66% { transform: translate(2%, -3%); }
+  100% { transform: translate(0, 0); }
+}
+
+.flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 20;
+  background: radial-gradient(circle, transparent 30%, var(--hot) 120%);
+}
+
+.topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  padding: 16px clamp(16px, 4vw, 40px);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+/* The light only reads REC and blinks red while a call has the microphone. */
+.rec { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+.rec i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.rec[data-state="live"] { color: var(--hot); }
+.rec[data-state="live"] i { background: var(--hot); box-shadow: 0 0 12px var(--hot); animation: blink 1.2s steps(2) infinite; }
+
+@keyframes blink { 50% { opacity: 0.15; } }
+
+.wrap {
+  position: relative;
+  z-index: 2;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 8px clamp(16px, 4vw, 40px) 72px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(96px, 22vw, 230px);
+  line-height: 0.86;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  /* The mask only covers the element's box, and the tight line-height would crop letter tops. */
+  padding: 0.1em 0 0.03em;
+  margin-top: -0.1em;
+  color: var(--ink);
+  /* The top-to-bottom fade is a mask on the whole word; per-letter background-clip cut off parts of glyphs. */
+  -webkit-mask-image: linear-gradient(180deg, #000 35%, rgba(0, 0, 0, 0.62) 100%);
+  mask-image: linear-gradient(180deg, #000 35%, rgba(0, 0, 0, 0.62) 100%);
+}
+
+.title .char { display: inline-block; }
+
+/* The O is a stopwatch whose hand ticks round once every 6 seconds. */
+.clockO .watch {
+  height: 0.82em;
+  width: auto;
+  margin: 0 0.03em;
+  vertical-align: baseline;
+  overflow: visible;
+}
+
+.watch .hand {
+  transform-box: view-box;
+  transform-origin: 50px 68px;
+  animation: tick 6s steps(60) infinite;
+}
+
+@keyframes tick { to { transform: rotate(360deg); } }
+
+.lede {
+  max-width: 560px;
+  margin: 14px 0 36px;
+  font-size: clamp(18px, 2.4vw, 22px);
+  color: #cfcbd6;
+}
+
+.label {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d6d2dc;
+}
+
+.roles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.role {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 14px 11px;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  overflow: hidden;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.role::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 40%, rgba(233, 255, 92, 0.12), transparent 60%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.role:hover { transform: translateY(-3px); border-color: rgba(233, 255, 92, 0.45); }
+.role:hover::after { transform: translateX(100%); }
+.role.on { border-color: var(--acid); box-shadow: 0 0 0 1px var(--acid), 0 12px 40px rgba(233, 255, 92, 0.12); }
+
+.tag { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.roleName { font-family: var(--display); font-size: clamp(19px, 2.4vw, 24px); line-height: 1; text-transform: uppercase; }
+.taunt { font-size: 12px; color: var(--acid); }
+
+.field { display: block; margin-bottom: 16px; }
+
+input, textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font: 16px var(--ui);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus, textarea:focus { border-color: var(--acid); }
+
+.posting { margin-bottom: 22px; }
+.posting summary { color: #d6d2dc; font-size: 14px; margin-bottom: 10px; }
+
+.cta {
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  padding: 18px;
+  background: var(--acid);
+  color: #0b0b0b;
+  font-family: var(--display);
+  font-size: 26px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 40px rgba(233, 255, 92, 0.25);
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.cta:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 16px 60px rgba(233, 255, 92, 0.35); }
+.cta:disabled { opacity: 0.25; cursor: not-allowed; box-shadow: none; }
+
+.ghost {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font: 15px var(--ui);
+}
+
+.ghost:hover { color: var(--ink); border-color: rgba(255, 255, 255, 0.25); }
+
+.note { min-height: 1.3em; margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+
+/* Interrogation screen */
+.liveHead { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+.claim { margin: 0; font-family: var(--display); font-size: clamp(30px, 5vw, 48px); text-transform: uppercase; line-height: 1; }
+.clock { font-family: var(--display); font-size: clamp(56px, 9vw, 92px); line-height: 0.9; font-variant-numeric: tabular-nums; }
+.clock.low { color: var(--hot); }
+
+.stage {
+  position: relative;
+  width: min(440px, 86vw);
+  aspect-ratio: 1;
+  margin: 18px auto 0;
+}
+
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--heat) 35%, transparent), transparent 70%);
+  filter: blur(30px);
+  transition: background 0.6s;
+}
+
+.orb { position: absolute; inset: 6%; width: 88%; height: 88%; }
+
+.ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ringTrack { fill: none; stroke: rgba(255, 255, 255, 0.07); stroke-width: 3; }
+.ringFill {
+  fill: none;
+  stroke: var(--heat);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 578;
+  stroke-dashoffset: 578;
+  filter: drop-shadow(0 0 6px var(--heat));
+  transition: stroke-dashoffset 0.6s ease, stroke 0.6s;
+}
+
+.meterRead {
+  position: absolute;
+  left: 50%;
+  bottom: -44px;
+  transform: translateX(-50%);
+  font-family: var(--display);
+  font-size: 34px;
+  color: var(--heat);
+  text-shadow: 0 0 18px var(--heat);
+}
+
+.meterRead small { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; margin-left: 4px; }
+
+.status { text-align: center; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin: 16px 0 8px; }
+
+.notesWrap { min-height: 132px; }
+
+.notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+.notes li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--hot);
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.notes li.good { border-left-color: var(--pass); }
+.notes b { font-family: var(--display); font-weight: 400; font-size: 18px; color: var(--hot); min-width: 44px; }
+.notes li.good b { color: var(--pass); }
+
+.trace {
+  position: relative;
+  margin-top: 18px;
+  height: 110px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.traceLabel { position: absolute; left: 12px; bottom: 6px; margin: 0; font-size: 10px; }
+.poly { width: 100%; height: 100%; display: block; }
+
+.captions { list-style: none; padding: 0; margin: 14px 0 0; font-size: 14px; color: var(--muted); }
+.captions li { margin-bottom: 4px; }
+.captions b { color: var(--ink); font-weight: 500; }
+
+/* Verdict: case file with a stamp */
+.case {
+  position: relative;
+  padding: clamp(18px, 4vw, 32px);
+  background: linear-gradient(180deg, rgba(24, 23, 30, 0.92), rgba(12, 12, 16, 0.92));
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.caseHead { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: 0.16em; color: var(--muted); margin-bottom: 18px; }
+
+.caseBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; margin: 0 0 20px; }
+.facts dt { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.facts dd { margin: 2px 0 0; font-size: 18px; color: var(--ink); }
+#factRole { text-transform: capitalize; }
+
+.stamp {
+  justify-self: end;
+  margin-right: 8px;
+  padding: 6px 18px;
+  font-family: var(--display);
+  font-size: clamp(48px, 9vw, 92px);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  border: 6px solid currentColor;
+  border-radius: 10px;
+  transform: rotate(-12deg);
+  opacity: 0;
+  mix-blend-mode: screen;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -2.2 1.6'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -2.2 1.6'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.stamp[data-verdict="clocked"] { color: var(--hot); text-shadow: 0 0 24px rgba(255, 45, 85, 0.5); }
+.stamp[data-verdict="passed"] { color: var(--pass); text-shadow: 0 0 24px rgba(57, 255, 136, 0.5); }
+
+.verdictLine { font-size: clamp(20px, 3vw, 26px); font-weight: 700; margin: 0; }
+
+.report {
+  white-space: pre-wrap;
+  min-height: 3em;
+  padding: 14px 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.emailForm { margin-top: 22px; }
+
+/* Motion is all CSS, so content can't stay hidden if a script stalls. "backwards" fill hands control
+   back to the normal styles when an entrance ends, which keeps hover effects working. */
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes drop { from { opacity: 0; transform: translateY(105%) rotate(10deg); } to { opacity: 1; transform: none; } }
+@keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+@keyframes shake {
+  0%, 100% { transform: none; }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+@keyframes slam { from { opacity: 0; transform: scale(3.2) rotate(-30deg); } to { opacity: 1; transform: rotate(-12deg); } }
+@keyframes flashOut { from { opacity: 0.75; } to { opacity: 0; } }
+
+.intro .title .char { animation: drop 0.9s cubic-bezier(0.16, 1, 0.3, 1) backwards; animation-delay: calc(var(--i) * 60ms); }
+.intro .lede { animation: rise 0.5s 0.45s backwards; }
+.intro > .label { animation: rise 0.4s 0.6s backwards; }
+.intro .role { animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; animation-delay: calc(0.65s + var(--i) * 80ms); }
+.intro .field, .intro .posting, .intro .cta { animation: rise 0.4s 1s backwards; }
+.screen.enter { animation: rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.notes li { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.stage.shake { animation: shake 0.5s; }
+.stamp.slam { animation: slam 0.3s 0.35s cubic-bezier(0.7, 0, 0.84, 0) both; }
+.flash.go { animation: flashOut 0.8s 0.62s ease-out both; }
+.case.jolt { animation: shake 0.6s 0.62s; }
+
+@media (max-width: 560px) {
+  .roles { grid-template-columns: 1fr; }
+  .facts { grid-template-columns: 1fr; }
+  .caseBody { grid-template-columns: 1fr; }
+  .stamp { justify-self: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spot, .grain, .rec[data-state="live"] i, .watch .hand,
+  .intro .title .char, .intro .lede, .intro > .label, .intro .role, .intro .field, .intro .posting, .intro .cta,
+  .screen.enter, .notes li, .stage.shake, .case.jolt, .flash.go { animation: none; }
+  .stamp.slam { animation: none; opacity: 1; }
+}
+
+/* Interrogator's current question, large enough to follow in a loud room. */
+.question {
+  max-width: 760px;
+  min-height: 2.8em;
+  margin: 0 auto 18px;
+  text-align: center;
+  font-size: clamp(19px, 2.6vw, 26px);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* Tick: the mascot and help chat (chat.js). */
+.chatLauncher {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40;
+  width: 68px;
+  height: 68px;
+  padding: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, rgba(233, 255, 92, 0.25), rgba(10, 10, 14, 0.92) 70%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(233, 255, 92, 0.35);
+  animation: bob 3s ease-in-out infinite;
+}
+
+.chatLauncher .tick { width: 100%; height: 100%; display: block; }
+.chatLauncher:hover { animation-play-state: paused; }
+
+.chatHint {
+  position: absolute;
+  right: 80px;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--acid);
+  color: #0b0b0b;
+  font: 600 13px var(--ui);
+  animation: hintIn 0.4s 1.6s backwards, hintOut 0.4s 8s forwards;
+}
+
+.chatLauncher.open .chatHint { display: none; }
+
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes hintIn { from { opacity: 0; transform: translate(10px, -50%); } }
+@keyframes hintOut { to { opacity: 0; visibility: hidden; } }
+
+.tick .eyes { transform-box: fill-box; transform-origin: center; animation: blinkEyes 5s infinite; }
+@keyframes blinkEyes { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+
+.chatPanel {
+  position: fixed;
+  right: 20px;
+  bottom: 102px;
+  z-index: 40;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 140px));
+  display: flex;
+  flex-direction: column;
+  background: rgba(14, 14, 19, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(233, 255, 92, 0.25);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: rise 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.chatPanel[hidden] { display: none; }
+
+.chatHead { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.chatFace { width: 40px; height: 40px; flex: none; }
+.chatFace .tick { width: 100%; height: 100%; display: block; }
+.chatHead b { display: block; font-family: var(--display); font-weight: 400; font-size: 20px; letter-spacing: 0.04em; }
+.chatHead small { font-size: 11px; color: var(--muted); }
+.chatClose { margin-left: auto; padding: 4px 8px; background: none; border: 0; color: var(--muted); font-size: 24px; line-height: 1; }
+.chatClose:hover { color: var(--ink); }
+
+.chatLog { list-style: none; margin: 0; padding: 14px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; }
+.chatLog li { max-width: 85%; padding: 9px 12px; border-radius: 14px; font-size: 14px; line-height: 1.45; animation: rise 0.25s backwards; }
+.chatLog li.bot { align-self: flex-start; background: rgba(255, 255, 255, 0.07); border-bottom-left-radius: 4px; }
+.chatLog li.me { align-self: flex-end; background: var(--acid); color: #0b0b0b; border-bottom-right-radius: 4px; }
+.chatLog li.typing { color: var(--muted); letter-spacing: 0.2em; }
+
+.chatChips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+.chatChips button { padding: 6px 10px; background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; font: 12px var(--ui); }
+.chatChips button:hover { border-color: var(--acid); color: var(--acid); }
+
+.chatForm { display: flex; gap: 8px; padding: 10px 12px 12px; border-top: 1px solid var(--line); }
+.chatForm input { padding: 10px 12px; font-size: 14px; }
+.chatForm button { flex: none; width: 44px; border: 0; border-radius: 10px; background: var(--acid); color: #0b0b0b; font-size: 18px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chatLauncher, .chatHint, .tick .eyes, .chatPanel, .chatLog li { animation: none; }
+}
+
+/* Clocked meter: the labelled bar under the orb, with the 60% line where you get clocked. */
+.meterBar { width: min(560px, 100%); margin: 60px auto 0; }
+.meterTrack {
+  position: relative;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.meterBarFill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--calm), var(--heat));
+  box-shadow: 0 0 14px var(--heat);
+  transition: width 0.6s ease;
+}
+.meterLine { position: absolute; top: 0; bottom: 0; left: 60%; width: 2px; background: var(--hot); box-shadow: 0 0 8px var(--hot); }
+.meterLabels { position: relative; height: 18px; margin-top: 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #bdb9c6; }
+.meterLabels span { position: absolute; top: 0; }
+.meterLabels span:nth-child(1) { left: 0; }
+.meterLabels span:nth-child(2) { left: 30%; transform: translateX(-50%); }
+.meterClockedLabel { left: 60%; transform: translateX(-50%); color: var(--hot); }
+
+/* Tick turns slightly toward the pointer on hover, which sells the 3D shading. */
+.chatLauncher .tick { transition: transform 0.3s ease; }
+.chatLauncher:hover .tick { transform: perspective(240px) rotateY(-14deg) rotateX(8deg) scale(1.06); }
+
+/* Push-to-talk button: dim while muted, lit and pulsing while you hold it. */
+.talk {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: min(420px, 100%);
+  margin: 0 auto 22px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  border: 1px solid rgba(233, 255, 92, 0.4);
+  border-radius: 999px;
+  font: 700 18px var(--ui);
+  user-select: none;
+  touch-action: none;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.talk .talkKey { font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: 0.08em; }
+.talkDot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); }
+.talk.on { background: var(--acid); color: #0b0b0b; transform: scale(0.98); box-shadow: 0 0 0 8px rgba(233, 255, 92, 0.12), 0 0 40px rgba(233, 255, 92, 0.35); }
+.talk.on .talkKey { color: #2a2a2a; }
+.talk.on .talkDot { background: var(--hot); animation: blink 0.8s steps(2) infinite; }
+
+/* Email button after a send: green and fully visible, not the faded disabled look. */
+.cta.sent, .cta.sent:disabled {
+  opacity: 1;
+  background: var(--pass);
+  color: #0b0b0b;
+  box-shadow: 0 10px 40px rgba(57, 255, 136, 0.28);
+  cursor: default;
+}
+
+/* The role's items sit beside the orb, at its lower left and lower right. */
+.costume { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.costume svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5)); }
+
+/* An odd last role card spans both columns, so the grid stays even. */
+.roles .role:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* The famous-person wildcard: gold, full width, so the "claim anyone" feature is one click away. */
+.role.wild { border-color: rgba(242, 201, 76, 0.45); background: linear-gradient(120deg, rgba(242, 201, 76, 0.1), var(--panel) 55%); }
+.role.wild .tag { color: #f2c94c; }
+.role.wild:hover { border-color: #f2c94c; }
+.role.wild.on { border-color: #f2c94c; box-shadow: 0 0 0 1px #f2c94c, 0 12px 40px rgba(242, 201, 76, 0.15); }

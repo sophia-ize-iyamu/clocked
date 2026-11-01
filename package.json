@@ -1,0 +1,19 @@
+{
+  "name": "clocked",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LARP as anyone. An AI interviewer tries to clock you.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --env-file=../../../Activities/Events/LarpHacks/clocked.env server.js",
+    "create-agent": "node --env-file=../../../Activities/Events/LarpHacks/clocked.env scripts/create-agent.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "agentboxd": "^0.3.0",
+    "express": "^5.1.0"
+  }
+}

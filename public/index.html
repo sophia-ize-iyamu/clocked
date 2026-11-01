@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clocked</title>
+  <meta name="description" content="Claim to be anyone. Survive 45 seconds of questions without getting clocked.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="spot" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="flash" id="flash" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <span class="mono">CASE 0001 · LARPHACKS 2026</span>
+    <span class="rec mono" id="rec" data-state="standby"><i></i><span id="recText">STANDBY</span></span>
+  </header>
+
+  <main class="wrap">
+    <section id="setup" class="screen intro">
+      <h1 class="title" id="title" aria-label="Clocked"><span class="char" style="--i:0" aria-hidden="true">C</span><span class="char" style="--i:1" aria-hidden="true">L</span><span class="char clockO" style="--i:2" aria-hidden="true"><svg class="watch" viewBox="0 0 100 116">
+            <defs><linearGradient id="ink" x1="0" y1="0" x2="0" y2="1"><stop offset="0.3" stop-color="#ffffff"/><stop offset="1" stop-color="#b9b5c2"/></linearGradient></defs>
+            <rect x="38" y="0" width="24" height="12" rx="3" fill="url(#ink)"/>
+            <rect x="45" y="10" width="10" height="10" fill="url(#ink)"/>
+            <rect x="80" y="22" width="14" height="9" rx="2" fill="url(#ink)" transform="rotate(45 87 26.5)"/>
+            <circle cx="50" cy="68" r="38" fill="none" stroke="url(#ink)" stroke-width="15"/>
+            <g class="hand"><line x1="50" y1="68" x2="50" y2="41" stroke="#e9ff5c" stroke-width="8" stroke-linecap="round"/></g>
+            <circle cx="50" cy="68" r="7" fill="#e9ff5c"/>
+          </svg></span><span class="char" style="--i:3" aria-hidden="true">C</span><span class="char" style="--i:4" aria-hidden="true">K</span><span class="char" style="--i:5" aria-hidden="true">E</span><span class="char" style="--i:6" aria-hidden="true">D</span></h1>
+      <p class="lede">Claim to be anyone. Survive 45 seconds of questions without getting clocked.</p>
+
+      <p class="label mono">Pick your cover</p>
+      <div class="roles" id="roles">
+        <button type="button" class="role" style="--i:0" data-role="neurosurgeon">
+          <span class="mono tag">Alleged role</span>
+          <span class="roleName">Neurosurgeon</span>
+          <span class="mono taunt">You've held a scalpel, right?</span>
+        </button>
+        <button type="button" class="role" style="--i:1" data-role="senior software engineer">
+          <span class="mono tag">Alleged role</span>
+          <span class="roleName">Senior software engineer</span>
+          <span class="mono taunt">Center a div. Go.</span>
+        </button>
+        <button type="button" class="role" style="--i:2" data-role="founder">
+          <span class="mono tag">Alleged role</span>
+          <span class="roleName">Founder</span>
+          <span class="mono taunt">So what's your ARR?</span>
+        </button>
+        <button type="button" class="role" style="--i:3" data-role="tennis player">
+          <span class="mono tag">Alleged role</span>
+          <span class="roleName">Tennis player</span>
+          <span class="mono taunt">Topspin or slice on a return?</span>
+        </button>
+        <button type="button" class="role wild" style="--i:4" data-role="Bill Gates">
+          <span class="mono tag">Wildcard: famous person</span>
+          <span class="roleName">Bill Gates</span>
+          <span class="mono taunt">Name your first company.</span>
+        </button>
+      </div>
+
+      <label class="field">
+        <span class="mono label">Or claim anyone: a role or a famous person</span>
+        <input id="role" type="text" maxlength="80" placeholder="astronaut, sommelier, Serena Williams" autocomplete="off">
+      </label>
+      <details class="posting">
+        <summary class="mono">Add a job posting (optional)</summary>
+        <textarea id="posting" rows="4" maxlength="20000" placeholder="Paste a posting to get questions about it"></textarea>
+      </details>
+
+      <button id="start" class="cta" type="button" disabled>Enter the room</button>
+      <p id="setupNote" class="note">In the room, hold Space or the Hold to answer button while you talk.</p>
+    </section>
+
+    <section id="live" class="screen" hidden>
+      <div class="liveHead">
+        <div>
+          <p class="mono label">Subject claims</p>
+          <p class="claim" id="claim"></p>
+        </div>
+        <div class="clock" id="timer">0:45</div>
+      </div>
+
+      <div class="stage">
+        <svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><circle class="ringTrack" cx="100" cy="100" r="92"></circle></svg>
+        <canvas id="orb" class="orb"></canvas>
+        <div class="costume" id="costume" aria-hidden="true"></div>
+        <div class="meterRead"><span id="meterNum">0</span><small>% SUS</small></div>
+      </div>
+      <div class="meterBar" aria-label="Clocked meter">
+        <div class="meterTrack">
+          <div class="meterBarFill" id="meterBar"></div>
+          <span class="meterLine" aria-hidden="true"></span>
+        </div>
+        <div class="meterLabels mono"><span>Convincing</span><span>Sus</span><span class="meterClockedLabel">Clocked at 60%</span></div>
+      </div>
+      <p class="status mono" id="status">Connecting</p>
+      <p class="question" id="question" aria-live="polite"></p>
+      <button id="talk" class="talk" type="button" aria-pressed="false">
+        <span class="talkDot" aria-hidden="true"></span>
+        <span id="talkText">Hold to answer</span>
+        <span class="mono talkKey">or hold Space</span>
+      </button>
+
+      <div class="notesWrap">
+        <p class="mono label">Panel notes</p>
+        <ol class="notes" id="notes"></ol>
+      </div>
+
+      <div class="trace">
+        <span class="mono label traceLabel">Voice trace</span>
+        <canvas id="poly" class="poly"></canvas>
+      </div>
+      <ol id="captions" class="captions"></ol>
+      <button id="stop" class="ghost" type="button">End round</button>
+    </section>
+
+    <section id="result" class="screen" hidden>
+      <article class="case" id="case">
+        <header class="caseHead mono">
+          <span>CASE FILE 0001</span>
+          <span id="caseDate"></span>
+        </header>
+        <div class="caseBody">
+          <div>
+            <dl class="facts mono">
+              <div><dt>Claimed role</dt><dd id="factRole"></dd></div>
+              <div><dt id="factTimeLabel">Time to clock</dt><dd id="factTime"></dd></div>
+              <div><dt>Final meter</dt><dd id="factMeter"></dd></div>
+              <div><dt>Bluffs logged</dt><dd id="factBluffs"></dd></div>
+            </dl>
+            <p class="verdictLine" id="verdictLine"></p>
+          </div>
+          <div class="stamp" id="stamp"></div>
+        </div>
+        <p class="mono label">Panel notes</p>
+        <div class="report mono" id="report">Writing your report.</div>
+      </article>
+
+      <form id="emailForm" class="emailForm">
+        <label class="field">
+          <span class="mono label" id="emailLabel">Get the recruiter's email</span>
+          <input id="email" type="email" required placeholder="you@email.com" autocomplete="email">
+        </label>
+        <button class="cta" id="sendBtn" type="submit">Send it</button>
+        <p id="emailNote" class="note"></p>
+      </form>
+      <button id="again" class="ghost" type="button">Claim another identity</button>
+    </section>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
