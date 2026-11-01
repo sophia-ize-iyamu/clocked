@@ -30,6 +30,9 @@ const motion = !matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const $ = (id) => document.getElementById(id);
 const article = (word) => (/^[aeiou]/i.test(word) ? "an" : "a");
+// A name like "Bill Gates" reads without an article; a role like "tennis player" or a job title takes one.
+const ROLE_WORD = /\b(manager|engineer|developer|analyst|designer|scientist|director|lead|specialist|consultant|associate|intern|officer|architect|assistant|researcher|writer|editor|nurse|teacher|technician|advisor|accountant|recruiter|owner|president|chef|player|worker|doctor|surgeon|pilot|driver|coach|artist|singer|founder|partner|agent|lawyer|judge|captain|student|professor)\b/i;
+const isName = (role) => /^[A-Z][a-z'’.-]+(?:\s[A-Z][a-z'’.-]+){1,2}$/.test(role.trim()) && !ROLE_WORD.test(role);
 // Restarts a CSS animation class (all motion lives in styles.css).
 const replay = (el, cls) => {
   el.classList.remove(cls);
@@ -546,7 +549,7 @@ function finish() {
         : "The panel didn't hear a finished answer, and silence counts as a tell."
       : verdict === "clocked"
         ? `Clocked as a fake ${role} in ${clockedAt ?? elapsed} seconds.`
-        : `The panel believed you're ${article(role)} ${role}.`;
+        : `The panel believed you're ${isName(role) ? role : `${article(role)} ${role}`}.`;
   $("emailLabel").textContent = verdict === "passed" ? "Get your offer by email" : "Get your rejection letter";
   $("emailNote").textContent = "";
   setSendButton("ready");

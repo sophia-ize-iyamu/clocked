@@ -15,7 +15,7 @@ export async function startBackupSession({ dynamicVariables, clientTools, onConn
   const { role, role_title: roleTitle, posting } = dynamicVariables;
   const id = `backup-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const turns = []; // { q, a, delta, reason, better }
-  let question = `${roleTitle}, is it? Walk me through your last day on the job.`;
+  let question = `${roleTitle}, is it? Walk me through a typical day.`;
   let current = null; // the utterance being spoken; events from cancelled ones are ignored
   let speaking = false;
   let ended = false;

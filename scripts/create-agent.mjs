@@ -42,7 +42,7 @@ const agent = await call("/agents/create", {
   name: "Clocked panel",
   conversation_config: {
     agent: {
-      first_message: "{{role_title}}, is it? Walk me through your last day on the job.",
+      first_message: "{{role_title}}, is it? Walk me through a typical day.",
       language: "en",
       prompt,
       dynamic_variables: {

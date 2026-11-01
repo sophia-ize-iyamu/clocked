@@ -18,6 +18,9 @@ const offers = new Map(); // email -> { role, base, current, replies }
 
 const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 const article = (word) => (/^[aeiou]/i.test(word) ? "an" : "a");
+// A name like "Bill Gates" reads without an article; a role like "tennis player" or a job title takes one.
+const ROLE_WORD = /\b(manager|engineer|developer|analyst|designer|scientist|director|lead|specialist|consultant|associate|intern|officer|architect|assistant|researcher|writer|editor|nurse|teacher|technician|advisor|accountant|recruiter|owner|president|chef|player|worker|doctor|surgeon|pilot|driver|coach|artist|singer|founder|partner|agent|lawyer|judge|captain|student|professor)\b/i;
+const isName = (role) => /^[A-Z][a-z'’.-]+(?:\s[A-Z][a-z'’.-]+){1,2}$/.test(role.trim()) && !ROLE_WORD.test(role);
 const addressOf = (from) => (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase();
 const baseFor = (role) => SALARY.find(([re]) => re.test(role))?.[1] ?? 140000;
 
@@ -50,7 +53,7 @@ export async function sendResultEmail(mail, inboxId, { email, role, verdict, rep
     text: [
       "Hi,",
       "",
-      `Thank you for your time today. After careful consideration, we've decided to move forward with a candidate who is an actual ${role}.`,
+      `Thank you for your time today. After careful consideration, we've decided to move forward with a candidate who is ${isName(role) ? `the real ${role}` : `an actual ${role}`}.`,
       "",
       "Where the panel clocked you:",
       String(report || "The panel clocked you early.").slice(0, 1500),
@@ -91,7 +94,7 @@ function decide(offer, ask) {
     offer.current = counter;
     return {
       must: money(counter),
-      text: `${money(ask)} is above our band for ${article(offer.role)} ${offer.role}. I can meet you at ${money(counter)}.`,
+      text: `${money(ask)} is above our band for ${isName(offer.role) ? offer.role : `${article(offer.role)} ${offer.role}`}. I can meet you at ${money(counter)}.`,
     };
   }
   offer.current = ceiling;
